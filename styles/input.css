@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+/* Pindai class dari halaman HTML */
+@source "../public/**/*.html";
+
+/* Palet batik (Raveloux warm tones) — jadi utility bg-batik-brown, text-batik-ink, dst */
+@theme {
+  --color-batik-brown: #8C6239;
+  --color-batik-tan:   #C29B70;
+  --color-batik-sand:  #EFE6D9;
+  --color-batik-ink:   #3A3A3A;
+  --color-batik-blue:  #4A6B82;
+}
+
+.drop-active {
+  border-color: #8C6239;
+  background: #F7F1E8;
+}

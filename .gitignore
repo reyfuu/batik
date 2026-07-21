@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+*.env
+
+# Data & model weights (besar, di luar git)
+data/
+models/
+DATASETv7/
+raw_batik_v2/
+public/generated/
+
+# OS
+.DS_Store

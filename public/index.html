@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Batik Motif Finder — Aiprenur</title>
+  <link rel="stylesheet" href="css/tailwind.css" />
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-batik-sand text-batik-ink min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-batik-brown text-white">
+    <div class="max-w-[1600px] mx-auto px-8 py-6">
+      <h1 class="text-2xl font-bold tracking-tight">Batik Motif Finder</h1>
+      <p class="text-batik-sand/90 text-sm mt-1">
+        Unggah foto batik (.png / .jpeg) — motif diidentifikasi via DINOv2, lalu bisa langsung dibuat variasinya.
+      </p>
+    </div>
+  </header>
+
+  <main class="max-w-[1600px] mx-auto px-8 py-8 space-y-8">
+
+    <!-- Katalog Batik -->
+    <section class="bg-white rounded-xl shadow-sm border border-batik-tan/40 p-6">
+      <div class="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+        <h2 class="text-xl font-bold text-batik-brown">Katalog Batik</h2>
+        <span id="colTotal" class="text-xs text-batik-ink/50"></span>
+      </div>
+      <p class="text-sm text-batik-ink/60 mb-4">Motif gabungan DATASETv7 + raw_batik_v2, digabung per nama motif.</p>
+      <button id="colLoad" class="border border-batik-tan text-batik-brown px-4 py-2 rounded-lg hover:bg-batik-sand transition">
+        Muat Ulang
+      </button>
+      <p id="colStatus" class="hidden text-sm text-batik-ink/70 mt-3"></p>
+      <div id="colWrap" class="hidden mt-5 space-y-10"></div>
+    </section>
+
+    <!-- Generate -->
+    <section class="bg-white rounded-xl shadow-sm border border-batik-tan/40 p-6">
+      <h2 class="text-xl font-bold text-batik-brown mb-1">Generate Batik</h2>
+      <p class="text-sm text-batik-ink/60 mb-4">Pilih batik acuan, ketik deskripsi, lalu <b>Pratinjau</b> dulu (1 gambar) untuk lihat hasilnya — kalau cocok baru <b>Generate</b> 5 variasi. Tersimpan di <span class="font-mono">public/generated/</span>.</p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <label id="genUpload" class="flex items-center gap-2 border border-batik-tan rounded-lg px-4 py-2 cursor-pointer hover:bg-batik-sand transition shrink-0">
+          <img id="genThumb" class="hidden w-8 h-8 object-cover rounded" alt="" />
+          <span id="genUploadLabel" class="text-batik-brown font-medium">Pilih gambar</span>
+          <input id="genFile" type="file" accept="image/png,image/jpeg" class="hidden" />
+        </label>
+        <input id="genPrompt" type="text" placeholder="mis. motif batik parang, warna coklat emas, latar krem"
+          class="flex-1 border border-batik-tan rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-batik-brown/40" />
+        <button id="previewBtn" class="border border-batik-blue text-batik-blue px-5 py-2 rounded-lg font-semibold hover:bg-batik-blue/10 transition shrink-0">
+          Pratinjau
+        </button>
+        <button id="genBtn" class="bg-batik-blue text-white px-5 py-2 rounded-lg font-semibold hover:bg-batik-blue/90 transition shrink-0">
+          Generate
+        </button>
+      </div>
+      <p id="genStatus" class="hidden text-sm text-batik-ink/70 mt-3"></p>
+      <div id="genResult" class="hidden mt-4"></div>
+    </section>
+
+  </main>
+
+  <!-- Detail batik (Shopee-style) + pemilih warna (ala konfigurator mobil) -->
+  <div id="detail" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-auto shadow-2xl flex flex-col md:flex-row">
+      <div class="md:w-1/2 bg-batik-sand p-6 flex items-center justify-center">
+        <canvas id="detailCanvas" class="max-w-full max-h-[75vh] rounded-lg shadow"></canvas>
+      </div>
+      <div class="md:w-1/2 p-6 relative">
+        <button id="detailClose" class="absolute top-4 right-4 text-batik-ink/40 hover:text-batik-brown text-xl leading-none">✕</button>
+        <h3 id="detailMotif" class="text-2xl font-bold text-batik-brown pr-8"></h3>
+        <p id="detailMeta" class="text-sm text-batik-ink/60 mt-1"></p>
+        <p class="text-sm font-semibold text-batik-ink mt-6 mb-3">Pilih warna</p>
+        <div id="swatches" class="flex flex-wrap gap-3"></div>
+        <button id="detailCta" class="mt-8 w-full bg-batik-blue text-white px-5 py-3 rounded-lg font-semibold hover:bg-batik-blue/90 transition"></button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="max-w-[1600px] mx-auto px-8 py-8 text-center text-sm text-batik-ink/50">
+    Aiprenur · Batik Motif Analysis
+  </footer>
+
+  <script>
+    const $ = (id) => document.getElementById(id);        // shortcut getElementById
+    // Escape untuk nilai atribut HTML (nama motif/daerah masuk ke data-*).
+    const esc = (s) => String(s).replace(/[&<>"']/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    // Gambar contoh dilayani backend (/ref, /rawv2, /generated) -> prefix origin backend
+    // supaya tetap muncul walau frontend dibuka dari origin lain (mis. Live Server).
+    const API_BASE = "http://127.0.0.1:8791";
+    const absUrl = (u) => (u && u.startsWith("/") ? API_BASE + u : u);
+
+    // --- Generate (uji API) ---
+    const GEN_ENDPOINT = API_BASE + "/api/generate";
+    let genFile = null;                          // gambar acuan khusus generate (upload di sini)
+
+    // Upload yang digabung dengan prompt: set genFile + tampilkan thumbnail kecil.
+    $("genFile").addEventListener("change", ev => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      if (!["image/png", "image/jpeg"].includes(f.type)) { alert("Hanya PNG atau JPEG."); return; }
+      if (f.size > 10 * 1024 * 1024) { alert("Ukuran maksimal 10 MB."); return; }
+      genFile = f;
+      $("genThumb").src = URL.createObjectURL(f);
+      $("genThumb").classList.remove("hidden");
+      $("genUploadLabel").textContent = f.name.length > 18 ? f.name.slice(0, 15) + "…" : f.name;
+    });
+
+    // Satu fungsi untuk Pratinjau (1 gambar) & Generate (5) — bedanya cuma jumlah.
+    // Pratinjau juga menampilkan potongan acuan yang benar-benar dipakai model, supaya
+    // terlihat motif bagian mana yang jadi sumber (foto baju -> yang diambil kainnya).
+    async function runGenerate(count, label) {
+      const prompt = $("genPrompt").value.trim();
+      if (!prompt) { alert("Isi deskripsi motif dulu."); return; }
+      if (!genFile) { alert("Pilih gambar batik acuan dulu (tombol di sebelah prompt)."); return; }
+      const st = $("genStatus"), box = $("genResult");
+      st.textContent = `${label}… (model dimuat saat pertama ~20 dtk; lalu ~2 dtk/gambar)`;
+      st.classList.remove("hidden"); box.classList.add("hidden");
+      try {
+        const fd = new FormData();
+        fd.append("image", genFile);
+        fd.append("prompt", prompt);
+        fd.append("count", String(count));
+        const res = await fetch(GEN_ENDPOINT, { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+        const patch = data.patch_url ? `
+          <figure class="shrink-0">
+            <img src="${absUrl(data.patch_url)}" alt="acuan" class="w-40 h-40 object-cover rounded-lg border-2 border-batik-brown/50 shadow" />
+            <figcaption class="text-xs text-batik-ink/60 mt-1 text-center">motif acuan</figcaption>
+          </figure>` : "";
+        box.innerHTML = `<div class="flex flex-wrap gap-4 items-start">${patch}
+          ${(data.images || []).map(u =>
+            `<img src="${absUrl(u)}" alt="hasil" class="w-40 h-40 object-cover rounded-lg border border-batik-tan/40 shadow" />`
+          ).join("")}</div>`;
+        st.classList.add("hidden"); box.classList.remove("hidden");
+      } catch (err) {
+        st.textContent = "Gagal: " + err.message;
+      }
+    }
+    $("previewBtn").addEventListener("click", () => runGenerate(1, "Membuat pratinjau"));
+    $("genBtn").addEventListener("click", () => runGenerate(5, "Membuat 5 variasi"));
+
+    // --- Katalog Batik: fetch /api/collection, render kartu per motif ---
+    // Subtitle kartu = daerah asal. Dataset tidak punya data perancang/studio,
+    // jadi field itu memang tidak ada — jangan diisi nama karangan.
+    const COL_ENDPOINT = API_BASE + "/api/collection";
+    async function loadCatalog() {
+      const st = $("colStatus"), wrap = $("colWrap"), btn = $("colLoad");
+      st.textContent = "Memuat katalog…"; st.classList.remove("hidden");
+      try {
+        const res = await fetch(COL_ENDPOINT + "?per=5");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+        $("colTotal").textContent = `${data.motifs.length} motif · ${data.total} gambar`;
+        wrap.innerHTML = data.motifs.map(m => `
+          <div>
+            <div class="flex items-baseline gap-2 mb-3">
+              <h3 class="text-lg font-bold text-batik-brown">${m.motif}</h3>
+              <span class="text-xs text-batik-ink/50">${m.corak} · ${m.count} gambar${m.regions.length ? " · " + m.regions.join(", ") : ""}</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+              ${m.images.map((im, i) => `
+                <div data-detail data-motif="${esc(m.motif)}" data-url="${esc(im.image_url)}"
+                     data-meta="${esc(m.corak + " · " + (im.region || "DATASETv7"))}"
+                     class="rounded-lg border border-batik-tan/40 overflow-hidden bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-batik-brown/40 transition">
+                  <div class="aspect-square bg-batik-sand">
+                    <img src="${absUrl(im.image_url)}" alt="${m.motif} ${i + 1}" loading="lazy" class="w-full h-full object-cover"
+                         onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-full h-full flex items-center justify-center text-batik-tan text-2xl',textContent:'🖼'}))" />
+                  </div>
+                  <div class="px-3 py-2">
+                    <p class="text-sm font-bold text-batik-ink">${m.motif} #${i + 1}</p>
+                    <p class="text-xs text-batik-ink/50">${im.region || "DATASETv7"}</p>
+                  </div>
+                </div>`).join("")}
+            </div>
+          </div>`).join("");
+        st.classList.add("hidden"); wrap.classList.remove("hidden");
+        btn.textContent = "Muat Ulang";
+      } catch (err) {
+        st.textContent = "Gagal memuat katalog: " + err.message;
+      }
+    }
+    $("colLoad").addEventListener("click", loadCatalog);
+    loadCatalog();   // katalog langsung termuat saat halaman dibuka
+
+    // --- Detail batik + pemilih warna (ala konfigurator mobil) ---
+    // Recolor = SET hue tiap pixel, saturasi & value (gelap-terang) dipertahankan.
+    // Jadi motif + garis hitam + latar tetap, cuma "cat"-nya ganti — tanpa server/ML.
+    // Pixel yang nyaris abu (latar krem, outline hitam) punya saturasi ~0, jadi hue
+    // tidak mengubahnya — persis yang diinginkan.
+    const COLORS = [
+      { name: "Asli",       hue: null, css: "#a8763e" },
+      { name: "Sogan",      hue: 28,   css: "#8a5a2b" },
+      { name: "Merah",      hue: 0,    css: "#c0392b" },
+      { name: "Oranye",     hue: 25,   css: "#d35400" },
+      { name: "Kuning Emas",hue: 45,   css: "#d4a017" },
+      { name: "Hijau",      hue: 130,  css: "#27824f" },
+      { name: "Biru Indigo",hue: 215,  css: "#2c5aa0" },
+      { name: "Ungu",       hue: 275,  css: "#7d3c98" },
+      { name: "Merah Muda", hue: 325,  css: "#d81b7a" },
+    ];
+    let origData = null;   // ImageData asli (recolor selalu dari sini, bukan kumulatif)
+
+    function recolor(hue) {
+      const ctx = $("detailCanvas").getContext("2d");
+      if (!origData) return;
+      if (hue === null) { ctx.putImageData(origData, 0, 0); return; }
+      const src = origData.data, out = ctx.createImageData(origData), d = out.data;
+      const H = hue / 360;
+      for (let k = 0; k < src.length; k += 4) {
+        const r = src[k] / 255, g = src[k + 1] / 255, b = src[k + 2] / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const v = max, s = max ? (max - min) / max : 0;    // ambil S,V pixel asli
+        const i = Math.floor(H * 6), f = H * 6 - i;         // rekonstruksi RGB dgn hue baru
+        const p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+        let R, G, B;
+        switch (i % 6) {
+          case 0: R = v; G = t; B = p; break;
+          case 1: R = q; G = v; B = p; break;
+          case 2: R = p; G = v; B = t; break;
+          case 3: R = p; G = q; B = v; break;
+          case 4: R = t; G = p; B = v; break;
+          default: R = v; G = p; B = q;
+        }
+        d[k] = R * 255; d[k + 1] = G * 255; d[k + 2] = B * 255; d[k + 3] = src[k + 3];
+      }
+      ctx.putImageData(out, 0, 0);
+    }
+
+    function selectColor(idx) {
+      recolor(COLORS[idx].hue);
+      [...$("swatches").children].forEach((el, i) =>
+        el.classList.toggle("ring-2", i === idx));
+      $("detailCta").textContent = "Pesan · Warna: " + COLORS[idx].name;
+      $("detailCta").dataset.color = COLORS[idx].name;
+    }
+
+    // Swatch dibangun sekali; ring-batik-brown menandai yang aktif.
+    $("swatches").innerHTML = COLORS.map((c, i) =>
+      `<button title="${c.name}" data-idx="${i}"
+        class="w-9 h-9 rounded-full border border-black/10 ring-batik-brown ring-offset-2 transition"
+        style="background:${c.css}"></button>`).join("");
+    $("swatches").addEventListener("click", e => {
+      const b = e.target.closest("[data-idx]");
+      if (b) selectColor(+b.dataset.idx);
+    });
+
+    function openDetail(motif, url, meta) {
+      $("detailMotif").textContent = motif;
+      $("detailMeta").textContent = meta;
+      $("detail").classList.remove("hidden");
+      origData = null;
+      const img = new Image();
+      img.crossOrigin = "anonymous";          // backend kirim CORS * -> canvas tak ter-taint
+      img.onload = () => {
+        const c = $("detailCanvas"), ctx = c.getContext("2d");
+        const cap = 700, sc = Math.min(1, cap / Math.max(img.width, img.height));
+        c.width = Math.round(img.width * sc);
+        c.height = Math.round(img.height * sc);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        origData = ctx.getImageData(0, 0, c.width, c.height);
+        selectColor(0);                       // mulai dari "Asli"
+      };
+      img.src = absUrl(url);
+    }
+
+    // Delegasi: klik kartu katalog mana pun -> buka detail.
+    $("colWrap").addEventListener("click", e => {
+      const card = e.target.closest("[data-detail]");
+      if (card) openDetail(card.dataset.motif, card.dataset.url, card.dataset.meta);
+    });
+    const closeDetail = () => $("detail").classList.add("hidden");
+    $("detailClose").addEventListener("click", closeDetail);
+    $("detail").addEventListener("click", e => { if (e.target === $("detail")) closeDetail(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
+    // ponytail: CTA "Pesan" belum ada backend order — konfirmasi lokal saja.
+    // Sambungkan ke /api/order (motif + warna terpilih) saat commerce dibangun.
+    $("detailCta").addEventListener("click", () =>
+      alert(`Pesanan dicatat (demo): ${$("detailMotif").textContent} — warna ${$("detailCta").dataset.color}`));
+
+  </script>
+</body>
+</html>

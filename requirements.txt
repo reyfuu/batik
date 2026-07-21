@@ -1,0 +1,32 @@
+numpy
+scikit-image
+scikit-learn
+opencv-python-headless
+torch
+torchvision
+matplotlib
+transformers
+huggingface_hub
+diffusers
+accelerate
+flask
+
+# --- Text-to-image (dijalankan lewat diffusers, model diunduh runtime dari HuggingFace) ---
+# Lib pendukung yang dibutuhkan pipeline model di bawah:
+sentencepiece          # Flux, PixArt, DeepFloyd IF, Hunyuan-DiT (tokenizer T5)
+protobuf               # Flux, Hunyuan-DiT
+ftfy                   # PixArt (bersihkan teks prompt)
+beautifulsoup4         # PixArt
+invisible-watermark    # SDXL / SDXL Turbo (watermark output)
+#
+# Model checkpoint (BUKAN pip package — muat via diffusers .from_pretrained(<id>)):
+#   Flux         -> black-forest-labs/FLUX.1-schnell     (FluxPipeline)
+#   Kandinsky    -> kandinsky-community/kandinsky-2-2-decoder  (AutoPipelineForText2Image)
+#   PixArt       -> PixArt-alpha/PixArt-XL-2-1024-MS      (PixArtAlphaPipeline)
+#   DeepFloyd IF -> DeepFloyd/IF-I-XL-v1.0  (IFPipeline; gated, perlu login HF)
+#   Hunyuan-DiT  -> Tencent-Hunyuan/HunyuanDiT-Diffusers  (HunyuanDiTPipeline)
+#   SDXL Turbo   -> stabilityai/sdxl-turbo                (AutoPipelineForText2Image)
+#   Openjourney  -> prompthero/openjourney                (StableDiffusionPipeline)
+replicate
+python-dotenv
+faiss-cpu==1.14.3  # similarity search; JANGAN di-import satu proses dengan torch (konflik libomp -> SIGABRT)

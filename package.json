@@ -1,0 +1,22 @@
+{
+  "name": "batik",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": ".venv/bin/python web/app.py",
+    "build:css": "tailwindcss -i ./styles/input.css -o ./public/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./styles/input.css -o ./public/css/tailwind.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.2",
+    "tailwindcss": "^4.3.2"
+  }
+}

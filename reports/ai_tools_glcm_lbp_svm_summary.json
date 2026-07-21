@@ -1,0 +1,27 @@
+{
+  "huggingface": {
+    "count": 0,
+    "accuracy": null,
+    "avg_latency_ms": null
+  },
+  "comfyui": {
+    "count": 0,
+    "accuracy": null,
+    "avg_latency_ms": null
+  },
+  "fooocus": {
+    "count": 0,
+    "accuracy": null,
+    "avg_latency_ms": null
+  },
+  "invokeai": {
+    "count": 0,
+    "accuracy": null,
+    "avg_latency_ms": null
+  },
+  "automatic1111": {
+    "count": 0,
+    "accuracy": null,
+    "avg_latency_ms": null
+  }
+}
